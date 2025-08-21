@@ -8,16 +8,21 @@ EMBEDDING_MODEL = 'hf.co/CompendiumLabs/bge-base-zh-v1.5-gguf'  # 你期望的
 LANGUAGE_MODEL  = 'hf.co/bartowski/Llama-3.2-1B-Instruct-GGUF'
 
 # ==== 2) 讀取表格 ====
-# 先把你的試算表匯出成 CSV：records.csv，表頭至少有 AccountingCategory, Summary
+# 先把你的試算表匯出成 CSV：records.csv，表頭至少有 InvoicePayment, AccountingCategory, Summary
 ROWS = []
 with open('records.csv', newline='') as f:
     reader = csv.DictReader(f)
     for r in reader:
+        pay  = str(r.get('InvoicePayment', '')).strip()
         cat = str(r.get('AccountingCategory', '')).strip()
         summ = (r.get('Summary', '') or '').strip()
-        if not cat and not summ:
+        if not pay and not cat and not summ:
             continue
-        ROWS.append({'AccountingCategory': cat, 'Summary': summ})
+        ROWS.append({
+            'InvoicePayment': pay,
+            'AccountingCategory': cat,
+            'Summary': summ
+        })
 
 print(f'Loaded {len(ROWS)} rows')
 
@@ -28,6 +33,7 @@ VECTOR_DB = []
 def add_row_to_database(row):
     # 你要拿哪些欄位檢索，就組進來；加入提示詞能讓純數字類型（如 2455）更好被模型理解
     text_for_embedding = (
+        f"InvoicePayment: {row['InvoicePayment']}"
         f"AccountingCategory is {row['AccountingCategory']}. "
         f"Summary: {row['Summary']}"
     )
@@ -64,7 +70,8 @@ while(1):
     for item, sim in retrieved:
         cat = item['meta']['AccountingCategory']
         summ = item['meta']['Summary']
-        print(f' - (similarity: {sim:.2f}) [{cat}] {summ}')
+        pay = item['meta']['InvoicePayment']
+        print(f' - (similarity: {sim:.2f}) [{cat}] {summ} {pay}')
 
     # 把「要給模型看的上下文」做成可讀格式（不使用 f-string 內嵌反斜線的寫法）
     context_lines = [f"[{item['meta']['AccountingCategory']}] {item['meta']['Summary']}"
@@ -79,12 +86,12 @@ while(1):
     )
 
     stream = ollama.chat(
-    model=LANGUAGE_MODEL,
-    messages=[
-        {'role': 'system', 'content': instruction_prompt},
-        {'role': 'user',   'content': input_query},
-    ],
-    stream=True,
+        model=LANGUAGE_MODEL,
+        messages=[
+            {'role': 'system', 'content': instruction_prompt},
+            {'role': 'user',   'content': input_query},
+        ],
+        stream=True,
     )
 
     print('Chatbot response:')
