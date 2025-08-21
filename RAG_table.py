@@ -1,5 +1,6 @@
 import csv
 import ollama
+from textwrap import dedent
 
 # ==== 1) 模型設定（建議用多語/中文 embedding）====
 # 你目前用的是英文 bge-base-en，中文效果會差；換成多語或中文向量模型更好
@@ -74,16 +75,40 @@ while(1):
         print(f' - (similarity: {sim:.2f}) [{cat}] {summ} {pay}')
 
     # 把「要給模型看的上下文」做成可讀格式（不使用 f-string 內嵌反斜線的寫法）
-    context_lines = [f"[{item['meta']['AccountingCategory']}] {item['meta']['Summary']}"
-                    for item, _ in retrieved]
+    
+    context_lines = [f"[{item['meta']['AccountingCategory']}] {item['meta']['Summary']} | InvoicePayment: {item['meta']['InvoicePayment']}"
+    for item, _ in retrieved]
     context = "\n".join(context_lines)
 
-    instruction_prompt = (
-        "You are a helpful chatbot.\n"
-        "Use only the following pieces of context (each line is one record) to answer the question. "
-        "Don't make up any new information:\n"
-        f"{context}"
-    )
+    instruction_prompt = dedent(f"""
+        你是一個嚴格的單一標籤分類器。任務：根據「使用者輸入」中的兩個欄位
+        - Summary
+        - InvoicePayment
+        以及我提供的「範例資料(context)」，推斷並輸出對應的 AccountingCategory。
+
+        【輸入與範例】
+        - 使用者輸入只會包含兩個資訊：
+        Summary: <使用者的摘要文字>
+        InvoicePayment: <received|paid 或其他值>
+        - 我將提供多行範例資料作為 context。每行都是一筆已知標註，格式為：
+        [AccountingCategory] <Summary 文本> | InvoicePayment: <值>
+
+        【判斷規則（依序）】
+        1) 只能使用提供的 context 做比對與歸納，不得編造新知識。
+        2) 將「使用者輸入的 (Summary, InvoicePayment)」與 context 各行的 (Summary, InvoicePayment) 做語意相似度比對。
+        3) 以最相近的類別為答案；如需多例參考，採 k=5 多數決；若票數相同，取相似度最高者所屬類別。
+        4) 只允許輸出「context 中出現過」的類別名稱（大小寫與標點需與 context 完全一致）。
+        5) 若無法從 context 合理判斷，輸出：Unknown。
+
+        【輸出格式（極嚴格）】
+        - 只輸出最終的 AccountingCategory。
+        - 僅一行，無任何前後綴、說明、引號、標點或額外字元。
+        - 範例：如果判斷為 留抵稅額，就只輸出 留抵稅額
+
+        以下是最相關的資料：
+        {context}
+        （僅能依上述內容做判斷）
+        """).strip()
 
     stream = ollama.chat(
         model=LANGUAGE_MODEL,
@@ -97,4 +122,5 @@ while(1):
     print('Chatbot response:')
     for chunk in stream:
         print(chunk['message']['content'], end='', flush=True)
+    
     print("\n------------\n")
