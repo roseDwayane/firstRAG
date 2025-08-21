@@ -113,9 +113,9 @@ You can download the example dataset from [here](https://huggingface.co/ngxson/
 
 ```python
 dataset = []
-with open('cat-facts.txt', 'r') as file:
-  dataset = file.readlines()
-  print(f'Loaded {len(dataset)} entries')
+with open('cat-facts.txt', 'r', encoding='utf-8-sig') as file:
+    dataset = file.readlines()
+print(f'Loaded {len(dataset)} entries')
 ```
 
 ### [](https://huggingface.co/blog/ngxson/make-your-own-rag#implement-the-vector-database)Implement the vector database
@@ -193,10 +193,13 @@ print('Retrieved knowledge:')
 for chunk, similarity in retrieved_knowledge:
   print(f' - (similarity: {similarity:.2f}) {chunk}')
 
-instruction_prompt = f'''You are a helpful chatbot.
-Use only the following pieces of context to answer the question. Don't make up any new information:
-{'\n'.join([f' - {chunk}' for chunk, similarity in retrieved_knowledge])}
-'''
+context = "\n".join([f" - {chunk}" for chunk, _ in retrieved_knowledge])
+instruction_prompt = (
+    "You are a helpful chatbot.\n"
+    "Use only the following pieces of context to answer the question. "
+    "Don't make up any new information:\n"
+    f"{context}"
+)
 ```
 
 We then use the `ollama` to generate the response. In this example, we will use `instruction_prompt` as system message:
@@ -263,7 +266,7 @@ RAG represents a significant advancement in making language models more knowledg
 The possibilities for extending and improving RAG systems are vast, from implementing more efficient vector databases to exploring advanced architectures like Graph RAG and Hybrid RAG. As the field continues to evolve, RAG remains a crucial technique for enhancing AI systems with external knowledge while maintaining their generative capabilities.
 
 ## [](https://huggingface.co/blog/ngxson/make-your-own-rag#references)References
-* https://huggingface.co/blog/ngxson/make-your-own-rag
+- https://huggingface.co/blog/ngxson/make-your-own-rag
 - [https://arxiv.org/abs/2005.11401](https://arxiv.org/abs/2005.11401)
 - [https://aws.amazon.com/what-is/retrieval-augmented-generation/](https://aws.amazon.com/what-is/retrieval-augmented-generation/)
 - [https://github.com/varunvasudeva1/llm-server-docs](https://github.com/varunvasudeva1/llm-server-docs)
