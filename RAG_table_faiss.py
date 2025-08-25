@@ -86,10 +86,18 @@ def search(query_text, k=5):
 # ==== 5) 對話 ====
 while(1):
     input_query = input('Ask me a question: ')
+    payment = "paid" # 這個要改
 
-    rst = search(input_query, k=3)
-    for r in rst:
-        print(f"{r['score']:.4f} | {r['meta']}")
+    rst = search(input_query+payment, k=3)
+    for item in rst:
+        cat = item['meta']['AccountingCategory']
+        summ = item['meta']['Summary']
+        pay = item['meta']['InvoicePayment']
+        if pay == payment:
+            print(f" - (similarity: {item['score']:.2f}) {cat} {summ} {pay}")
+            # return
+        else:
+            continue
 
     # ----------------------
     # retrieved = retrieve(input_query)
